@@ -46,14 +46,14 @@ Exporters for Devise.
 """
 
 
-class DeviseExporter(Exporter):
+class WebExporter(Exporter):
 
     def _get_openerp_data(self):
         """ Return the raw OpenERP data for ``self.binding_id`` """
         return self.model.browse(self.binding_id)
 
     def _after_export(self):
-        """ Can do several actions after exporting a record on Devise """
+        """ Can do several actions after exporting a record on a Web app """
         pass
 
     def __init__(self, connector_env):
@@ -61,7 +61,7 @@ class DeviseExporter(Exporter):
         :param connector_env: current environment (backend, session, ...)
         :type connector_env: :class:`connector.connector.ConnectorEnvironment`
         """
-        super(DeviseExporter, self).__init__(connector_env)
+        super(WebExporter, self).__init__(connector_env)
         self.binding_id = None
         self.binding_record = None
 
@@ -154,6 +154,9 @@ class DeviseExporter(Exporter):
         """
         return
 
+
+class DeviseExporter(WebExporter):
+
     def _create_data(self, map_record, fields=None, **kwargs):
         """ Get the data to pass to :py:meth:`_create` """
         return map_record.values(for_create=True, fields=fields, **kwargs)
@@ -198,18 +201,17 @@ class DeviseExporter(Exporter):
 #            if not record:
 #                return _('Nothing to export.')
 #            self._update(record)
-            url = "%s/users/api_update" % (self.backend_record.location.encode('utf-8'),)
-            res = requests.post(url, params=payload).json()
-# TODO do something with res?
+            url = "%s/devise_api/update/%s.json" % (self.backend_record.location.encode('utf-8'), binding.web_id)
+            requests.post(url, params=payload).json()
         else:
 #            record = self._create_data(map_record, fields=fields)
 #            if not record:
 #                return _('Nothing to export.')
 #            self.web_id = self._create(record)
-            url = "%s/users/api_create" % (self.backend_record.location.encode('utf-8'),)
+            url = "%s/devise_api/create.json" % (self.backend_record.location.encode('utf-8'),)
             res = requests.post(url, params=payload).json()
-# TODO set web_id
-        return _('Record exported with ID %s on Devise.') % self.web_id
+            binding.write({'web_id': res})
+        return _('Record exported with ID %s on Devise.') % res
 
 
 @job(default_channel='root.devise')

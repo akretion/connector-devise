@@ -85,20 +85,16 @@ from .unit.export_synchronizer import export_record
 
 @on_record_write(model_names='res.partner')
 def partner_write(session, model_name, record_id, fields):
-    print "partner_write", model_name, fields, session.context
     if session.context.get('connector_no_export'):
         return
-
     model = session.pool.get(model_name)
     record = model.browse(session.cr, session.uid,
                            record_id, context=session.context)
-    print "bind_ids", record.web_bind_ids
 
-    record_backend_ids = [b.id for b in record.web_bind_ids]
     for backend_id in session.search('devise.backend', []):
         binding_id = False
         for binding in record.web_bind_ids:
-            if binding.backend_id == backend_id:
+            if binding.backend_id.id == backend_id:
                 binding_id = binding.id
                 break
         if not binding_id:
@@ -107,13 +103,21 @@ def partner_write(session, model_name, record_id, fields):
 
         export_record.delay(session, 'devise.res.partner', binding_id, fields)
 
+@on_record_create(model_names='res.partner')
+def partner_create(session, model_name, record_id, vals):
+    if session.context.get('connector_no_export'):
+        return
+    model = session.pool.get(model_name)
+    record = model.browse(session.cr, session.uid,
+                           record_id, context=session.context)
+
+    for backend_id in session.search('devise.backend', []):
+        binding = session.env['devise.res.partner'].with_context(connector_no_export=True).create({'backend_id': backend_id, 'openerp_id': record_id})
+        binding_id = binding.id
+
+        export_record.delay(session, 'devise.res.partner', binding_id)
 
 # TODO
-#@on_record_create(model_names='res.partner')
-#def partner_create(session, model_name, record_id):
-#    print "partner_create", model_name, record_id
-#    export_record.delay(session, model_name, record_id)
-
 #@on_record_unlink(model_names='devise.res.partner')
 #def delay_unlink(session, model_name, record_id):
 #    export_delete_record.delay(session, model_name, record_id)
