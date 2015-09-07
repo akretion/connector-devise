@@ -26,6 +26,9 @@ from openerp.addons.connector.unit.mapper import (
     ExportMapper
 )
 from .backend import devise
+from openerp.addons.connector.event import on_record_create, on_record_write, on_record_unlink
+from .unit.export_synchronizer import export_record
+from .unit.delete_synchronizer import export_delete_record
 
 
 class devise_res_partner(models.Model):
@@ -48,7 +51,7 @@ class devise_res_partner(models.Model):
     openerp_id = fields.Many2one(comodel_name='res.partner',
                                  string='Partner',
                                  required=True,
-                                 ondelete='restrict')
+                                 ondelete='cascade')
 
     _sql_constraints = [
         ('devise_uniq', 'unique(backend_id, web_id)',
@@ -71,17 +74,7 @@ class ResPartner(models.Model):
 @devise
 class PartnerExportMapper(ExportMapper):
     _model_name = 'devise.res.partner'
-# TODO
 
-
-from openerp.addons.connector.event import on_record_create, on_record_write, on_record_unlink
-from .unit.export_synchronizer import export_record
-#from .unit.delete_synchronizer import export_delete_record
-
-#@on_record_write(model_names='devise.res.partner')
-#def devise_partner_write(session, model_name, record_id):
-#    print "devise_partner_write", model_name, fields, record_id
-#    export_record.delay(session, model_name, record_id)
 
 @on_record_write(model_names='res.partner')
 def partner_write(session, model_name, record_id, fields):
@@ -113,11 +106,15 @@ def partner_create(session, model_name, record_id, vals):
 
     for backend_id in session.search('devise.backend', []):
         binding = session.env['devise.res.partner'].with_context(connector_no_export=True).create({'backend_id': backend_id, 'openerp_id': record_id})
-        binding_id = binding.id
+        export_record.delay(session, 'devise.res.partner', binding.id)
 
-        export_record.delay(session, 'devise.res.partner', binding_id)
-
-# TODO
-#@on_record_unlink(model_names='devise.res.partner')
-#def delay_unlink(session, model_name, record_id):
-#    export_delete_record.delay(session, model_name, record_id)
+@on_record_unlink(model_names='res.partner')
+def delay_unlink(session, model_name, record_id):
+    model = session.pool.get(model_name)
+    record = model.browse(session.cr, session.uid,
+                           record_id, context=session.context)
+    for backend_id in session.search('devise.backend', []):
+        for binding in record.web_bind_ids:
+            if binding.backend_id.id == backend_id:
+                export_delete_record.delay(session, 'devise.res.partner', backend_id, binding.web_id)
+                break

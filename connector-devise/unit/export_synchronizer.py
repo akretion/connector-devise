@@ -157,34 +157,9 @@ class WebExporter(Exporter):
 
 class DeviseExporter(WebExporter):
 
-    def _create_data(self, map_record, fields=None, **kwargs):
-        """ Get the data to pass to :py:meth:`_create` """
-        return map_record.values(for_create=True, fields=fields, **kwargs)
-
-    def _create(self, data):
-        """ Create the Devise record """
-        # special check on data before export
-        self._validate_create_data(data)
-        return self.backend_adapter.create(data)
-
-    def _update_data(self, map_record, fields=None, **kwargs):
-        """ Get the data to pass to :py:meth:`_update` """
-        return map_record.values(fields=fields, **kwargs)
-
-    def _update(self, data):
-        """ Update an Devise record """
-        assert self.web_id
-        # special check on data before export
-        self._validate_update_data(data)
-        self.backend_adapter.write(self.web_id, data)
-
     def run(self, binding_id, fields=None):
         """ Flow of the synchronization, implemented in inherited classes"""
         self.binding_id = binding_id
-
-#        if not self.web_id:
-#            fields = None  # should be created with all the fields
-
         binding = self.model.browse(self.binding_id)
         partner = binding.openerp_id
         if not partner.email:
@@ -193,21 +168,11 @@ class DeviseExporter(WebExporter):
         # prevent other jobs to export the same record
         # will be released on commit (or rollback)
         self._lock()
-
-#        map_record = self._map_data()
         payload = {'email': partner.email}
         if binding.web_id:
-#            record = self._update_data(map_record, fields=fields)
-#            if not record:
-#                return _('Nothing to export.')
-#            self._update(record)
             url = "%s/devise_api/update/%s.json" % (self.backend_record.location.encode('utf-8'), binding.web_id)
             requests.post(url, params=payload).json()
         else:
-#            record = self._create_data(map_record, fields=fields)
-#            if not record:
-#                return _('Nothing to export.')
-#            self.web_id = self._create(record)
             url = "%s/devise_api/create.json" % (self.backend_record.location.encode('utf-8'),)
             res = requests.post(url, params=payload).json()
             binding.write({'web_id': res})
@@ -218,7 +183,6 @@ class DeviseExporter(WebExporter):
 def export_record(session, model_name, binding_id, fields=None):
     """ Export a record on Devise """
     record = session.env[model_name].browse(binding_id)
-    print "export record", model_name, binding_id, fields, session.env['devise.backend'].search([])
     for backend_id in session.env['devise.backend'].search([]):
         env = get_environment(session, model_name, backend_id.id)
 #       exporter = env.get_connector_unit(DeviseExporter)
