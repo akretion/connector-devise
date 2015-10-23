@@ -20,6 +20,7 @@
 ##############################################################################
 
 import logging
+import os
 
 from contextlib import contextmanager
 from datetime import datetime
@@ -168,7 +169,7 @@ class DeviseExporter(WebExporter):
         # prevent other jobs to export the same record
         # will be released on commit (or rollback)
         self._lock()
-        payload = {'email': partner.email}
+        payload = {'email': partner.email, 'devise_api_secret': os.environ['DEVISE_API_SECRET']}
         if binding.web_id:
             url = "%s/devise_api/update/%s.json" % (self.backend_record.location.encode('utf-8'), binding.web_id)
             requests.post(url, params=payload).json()

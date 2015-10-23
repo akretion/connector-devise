@@ -19,6 +19,7 @@
 #
 ##############################################################################
 
+import os
 import requests
 from openerp.tools.translate import _
 from openerp.addons.connector.queue.job import job
@@ -29,8 +30,10 @@ from ..connector import get_environment
 class DeviseDeleter(Deleter):
 
     def run(self, web_id):
-        url = "%s/devise_api/destroy/%s.json" % (self.backend_record.location.encode('utf-8'), web_id)
-        requests.post(url).json()
+        payload = {'devise_api_secret': os.environ['DEVISE_API_SECRET']}
+        url = "%s/devise_api/destroy/%s.json" % (self.backend_record.location.encode('utf-8'),
+                                                 web_id)
+        requests.post(url, params=payload).json()
         return _('Record %s deleted on Devise') % web_id
 
 @job(default_channel='root.devise')
