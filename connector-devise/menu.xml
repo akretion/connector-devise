@@ -2,16 +2,16 @@
 <openerp>
   <data>
 
-    <menuitem id="menu_devise_root"
+    <menuitem id="menu_web_backend_root"
         parent="connector.menu_connector_root"
-        name="devise"
+        name="Web"
         sequence="10"
         groups="connector.group_connector_manager"/>
 
-    <menuitem id="menu_devise_backend"
+    <menuitem id="menu_web_backend"
         name="Backends"
-        parent="menu_devise_root"
-        action="action_devise_backend"/>
+        parent="menu_web_backend_root"
+        action="action_web_backend"/>
 
   </data>
 </openerp>

@@ -21,15 +21,15 @@
 from openerp import models, api, fields
 
 
-class DeviseBackend(models.Model):
-    _name = 'devise.backend'
+class WebBackend(models.Model):
+    _name = 'web.backend'
     _inherit = 'connector.backend'
-    _backend_type = 'devise'
+    _backend_type = 'web'
 
     @api.model
     def select_versions(self):
         """ Available versions in the backend. """
-        return [('3-0', '3-0')]
+        return [('devise-3.0', 'Web Devise 3.0')]
 
     version = fields.Selection(selection='select_versions', required=True)
     location = fields.Char(

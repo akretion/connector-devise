@@ -22,8 +22,8 @@
 import openerp.addons.connector.backend as backend
 
 
-devise = backend.Backend('devise')
-""" Generic Devise Backend """
+web = backend.Backend('web')
+""" Generic Web Backend based on Devise Rails app"""
 
-devise3_0 = backend.Backend(parent=devise, version='3-0')
-""" Devise 3.0 """
+web_3_0 = backend.Backend(parent=web, version='devise-3.0')
+""" Web Devise 3.0 """

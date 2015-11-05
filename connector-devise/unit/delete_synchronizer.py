@@ -25,20 +25,24 @@ from openerp.tools.translate import _
 from openerp.addons.connector.queue.job import job
 from openerp.addons.connector.unit.synchronizer import Deleter
 from ..connector import get_environment
+from ..backend import web
 
 
-class DeviseDeleter(Deleter):
+@web
+class WebDeleter(Deleter):
+    _model_name = ['web.res.partner']
 
-    def run(self, web_id):
-        payload = {'devise_api_secret': os.environ['DEVISE_API_SECRET']}
-        url = "%s/devise_api/destroy/%s.json" % (self.backend_record.location.encode('utf-8'),
-                                                 web_id)
+    def run(self, external_id):
+        payload = {'devise_api_secret': self.backend_record.secret}
+        url = "%s/devise_api/destroy/%s.json" % (
+            self.backend_record.location.encode('utf-8'),
+                                                 external_id)
         requests.post(url, params=payload).json()
-        return _('Record %s deleted on Devise') % web_id
+        return _('Record %s deleted on Devise') % external_id
 
-@job(default_channel='root.devise')
-def export_delete_record(session, model_name, backend_id, devise_id):
+@job(default_channel='root.web')
+def export_delete_record(session, model_name, backend_id, external_id):
+    """ Delete Record in Web """
     env = get_environment(session, model_name, backend_id)
-#    deleter = env.get_connector_unit(MagentoDeleter)
-    deleter = DeviseDeleter(env)
-    return deleter.run(devise_id)
+    deleter = env.get_connector_unit(Deleter)
+    return deleter.run(external_id)

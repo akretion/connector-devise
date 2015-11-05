@@ -22,39 +22,39 @@
 from openerp import models, fields
 from openerp.addons.connector.unit.mapper import mapping
 from openerp.addons.connector.unit.mapper import (
-    mapping,
     ExportMapper
 )
-from .backend import devise
+from .backend import web
 from openerp.addons.connector.event import on_record_create, on_record_write, on_record_unlink
 from .unit.export_synchronizer import export_record
 from .unit.delete_synchronizer import export_delete_record
 
 
-class devise_res_partner(models.Model):
-    _name = 'devise.res.partner'
+class WebResPartner(models.Model):
+    _name = 'web.res.partner'
     _inherit = 'external.binding'
     _inherits = {'res.partner': 'openerp_id'}
-    _description = 'Devise Partner'
+    _description = 'Web Partner'
 
     _rec_name = 'name'
 
     # openerp_id = openerp-side id must be declared in concrete model
     backend_id = fields.Many2one(
-        comodel_name='devise.backend',
+        comodel_name='web.backend',
         string='Devise Backend',
         required=True,
         ondelete='restrict',
     )
     # fields.Char because 0 is a valid Devise ID
-    web_id = fields.Char(string='ID on Devise')
+    external_id = fields.Char(string='ID on Devise')
     openerp_id = fields.Many2one(comodel_name='res.partner',
                                  string='Partner',
                                  required=True,
                                  ondelete='cascade')
+    sync_date = fields.Datetime()
 
     _sql_constraints = [
-        ('devise_uniq', 'unique(backend_id, web_id)',
+        ('web_uniq', 'unique(backend_id, external_id)',
          'A binding already exists with the same Devise ID.'),
     ]
 
@@ -63,58 +63,12 @@ class ResPartner(models.Model):
     _inherit = 'res.partner'
 
     web_bind_ids = fields.One2many(
-        comodel_name='devise.res.partner',
+        comodel_name='web.res.partner',
         inverse_name='openerp_id',
         string='Devise Bindings',
     )
 
 
-
-
-@devise
+@web
 class PartnerExportMapper(ExportMapper):
-    _model_name = 'devise.res.partner'
-
-
-@on_record_write(model_names='res.partner')
-def partner_write(session, model_name, record_id, fields):
-    if session.context.get('connector_no_export'):
-        return
-    model = session.pool.get(model_name)
-    record = model.browse(session.cr, session.uid,
-                           record_id, context=session.context)
-
-    for backend_id in session.search('devise.backend', []):
-        binding_id = False
-        for binding in record.web_bind_ids:
-            if binding.backend_id.id == backend_id:
-                binding_id = binding.id
-                break
-        if not binding_id:
-            binding = session.env['devise.res.partner'].with_context(connector_no_export=True).create({'backend_id': backend_id, 'openerp_id': record_id})
-            binding_id = binding.id
-
-        export_record.delay(session, 'devise.res.partner', binding_id, fields)
-
-@on_record_create(model_names='res.partner')
-def partner_create(session, model_name, record_id, vals):
-    if session.context.get('connector_no_export'):
-        return
-    model = session.pool.get(model_name)
-    record = model.browse(session.cr, session.uid,
-                           record_id, context=session.context)
-
-    for backend_id in session.search('devise.backend', []):
-        binding = session.env['devise.res.partner'].with_context(connector_no_export=True).create({'backend_id': backend_id, 'openerp_id': record_id})
-        export_record.delay(session, 'devise.res.partner', binding.id)
-
-@on_record_unlink(model_names='res.partner')
-def delay_unlink(session, model_name, record_id):
-    model = session.pool.get(model_name)
-    record = model.browse(session.cr, session.uid,
-                           record_id, context=session.context)
-    for backend_id in session.search('devise.backend', []):
-        for binding in record.web_bind_ids:
-            if binding.backend_id.id == backend_id:
-                export_delete_record.delay(session, 'devise.res.partner', backend_id, binding.web_id)
-                break
+    _model_name = 'web.res.partner'

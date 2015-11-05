@@ -21,8 +21,9 @@
 
 from openerp.addons.connector.connector import ConnectorEnvironment
 
+
 def get_environment(session, model_name, backend_id):
     """ Create an environment to work with.  """
-    backend_record = session.env['devise.backend'].browse(backend_id)
+    backend_record = session.env['web.backend'].browse(backend_id)
     env = ConnectorEnvironment(backend_record, session, model_name)
     return env

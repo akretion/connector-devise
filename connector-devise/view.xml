@@ -2,11 +2,10 @@
 <openerp>
     <data>
 
-        <record id="view_devise_backend_form" model="ir.ui.view">
-            <field name="name">devise.backend.form</field>
-            <field name="model">devise.backend</field>
+        <record id="view_web_backend_form" model="ir.ui.view">
+            <field name="model">web.backend</field>
             <field name="arch" type="xml">
-                <form string="devise Backend" version="7.0">
+                <form string="Web Backend" version="7.0">
                     <header>
                     </header>
                     <sheet>
@@ -14,7 +13,7 @@
                         <h1>
                             <field name="name" class="oe_inline" />
                         </h1>
-                        <group name="devise" string="devise Configuration">
+                        <group name="web" string="Web Configuration">
                             <group colspan="4" col="4">
                                 <field name="version" colspan="4"/>
                                 <field name="location" placeholder="e.g. http://localhost:3000"
@@ -27,9 +26,8 @@
             </field>
         </record>
 
-        <record id="view_devise_backend_tree" model="ir.ui.view">
-            <field name="name">devise.backend.tree</field>
-            <field name="model">devise.backend</field>
+        <record id="view_web_backend_tree" model="ir.ui.view">
+            <field name="model">web.backend</field>
             <field name="arch" type="xml">
                 <tree string="Devise Backend" version="7.0">
                     <field name="name"/>
@@ -38,12 +36,12 @@
             </field>
         </record>
 
-        <record id="action_devise_backend" model="ir.actions.act_window">
-            <field name="name">Devise Backends</field>
-            <field name="res_model">devise.backend</field>
+        <record id="action_web_backend" model="ir.actions.act_window">
+            <field name="name">Web Backends</field>
+            <field name="res_model">web.backend</field>
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
-            <field name="view_id" ref="view_devise_backend_tree"/>
+            <field name="view_id" ref="view_web_backend_tree"/>
         </record>
 
     </data>

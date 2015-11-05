@@ -34,6 +34,7 @@ from openerp.addons.connector.queue.job import job, related_action
 from openerp.addons.connector.unit.synchronizer import Exporter
 from openerp.addons.connector.exception import (IDMissingInBackend,
                                                 RetryableJobError)
+from openerp.exceptions import Warning as UserError
 from ..connector import get_environment
 #from ..related_action import unwrap_binding
 
@@ -156,37 +157,51 @@ class WebExporter(Exporter):
         return
 
 
-class DeviseExporter(WebExporter):
+class WebPartnerExporter(WebExporter):
+    _model_name = 'web.res.partner'
 
+    #TODO implement
+    # the backend adapter
+    # generic run method
     def run(self, binding_id, fields=None):
         """ Flow of the synchronization, implemented in inherited classes"""
         self.binding_id = binding_id
         binding = self.model.browse(self.binding_id)
         partner = binding.openerp_id
         if not partner.email:
-            return
+            raise UserError('email is missing')
 
         # prevent other jobs to export the same record
         # will be released on commit (or rollback)
         self._lock()
-        payload = {'email': partner.email, 'devise_api_secret': os.environ['DEVISE_API_SECRET']}
-        if binding.web_id:
-            url = "%s/devise_api/update/%s.json" % (self.backend_record.location.encode('utf-8'), binding.web_id)
+        payload = {
+            'email': partner.email,
+            'devise_api_secret': self.backend_record.secret,
+        }
+        if binding.external_id:
+            url = "%s/devise_api/update/%s.json" % (
+                self.backend_record.location.encode('utf-8'),
+                binding.external_id,
+                )
             requests.post(url, params=payload).json()
+            external_id = binding.external_id
         else:
-            url = "%s/devise_api/create.json" % (self.backend_record.location.encode('utf-8'),)
-            res = requests.post(url, params=payload).json()
-            binding.write({'web_id': res})
-        return _('Record exported with ID %s on Devise.') % res
+            url = "%s/devise_api/create.json" % (
+                self.backend_record.location.encode('utf-8'),
+                )
+            external_id = requests.post(url, params=payload).json()
+            binding.write({'external_id': external_id})
+        return _('Record exported with ID %s on Devise.') % external_id
 
 
 @job(default_channel='root.devise')
 def export_record(session, model_name, binding_id, fields=None):
     """ Export a record on Devise """
     record = session.env[model_name].browse(binding_id)
-    for backend_id in session.env['devise.backend'].search([]):
+    for backend_id in session.env['web.backend'].search([]):
         env = get_environment(session, model_name, backend_id.id)
-#       exporter = env.get_connector_unit(DeviseExporter)
-        exporter = DeviseExporter(env)
+        #TODO FIXME
+        # exporter = env.get_connector_unit(WebExporter)
+        exporter = WebPartnerExporter(env)
         res = exporter.run(binding_id, fields=fields)
     return res
