@@ -156,42 +156,92 @@ class WebExporter(Exporter):
         """
         return
 
+    def _create_data(self, map_record, fields=None, **kwargs):
+        """ Get the data to pass to :py:meth:`_create` """
+        return map_record.values(for_create=True, fields=fields, **kwargs)
 
-class WebPartnerExporter(WebExporter):
-    _model_name = 'web.res.partner'
+    def _update_data(self, map_record, fields=None, **kwargs):
+        """ Get the data to pass to :py:meth:`_update` """
+        return map_record.values(fields=fields, **kwargs)
 
-    #TODO implement
-    # the backend adapter
-    # generic run method
-    def run(self, binding_id, fields=None):
-        """ Flow of the synchronization, implemented in inherited classes"""
+    def run(self, binding_id, *args, **kwargs):
+        """ Run the synchronization
+        :param binding_id: identifier of the binding record to export
+        """
         self.binding_id = binding_id
-        binding = self.model.browse(self.binding_id)
-        partner = binding.openerp_id
-        if not partner.email:
-            raise UserError('email is missing')
+        self.binding_record = self._get_openerp_data()
+
+        self.external_id = self.binder.to_backend(self.binding_id)
+
+        result = self._run(*args, **kwargs)
+
+        self.binder.bind(self.external_id, self.binding_id)
+        # Commit so we keep the external ID when there are several
+        # exports (due to dependencies) and one of them fails.
+        # The commit will also release the lock acquired on the binding
+        # record
+        self.session.commit()
+
+        self._after_export()
+        return result
+
+    def _run(self, fields=None):
+        """ Flow of the synchronization, implemented in inherited classes"""
+        assert self.binding_id
+        assert self.binding_record
+
+        if not self.external_id:
+            fields = None  # should be created with all the fields
 
         # prevent other jobs to export the same record
         # will be released on commit (or rollback)
         self._lock()
-        payload = {
-            'email': partner.email,
-            'devise_api_secret': self.backend_record.secret,
-        }
-        if binding.external_id:
-            url = "%s/devise_api/update/%s.json" % (
-                self.backend_record.location.encode('utf-8'),
-                binding.external_id,
-                )
-            requests.post(url, params=payload).json()
-            external_id = binding.external_id
+
+        map_record = self._map_data()
+
+        if self.external_id:
+            record = self._update_data(map_record, fields=fields)
+            if not record:
+                return _('Nothing to export.')
+            self._update(record)
         else:
-            url = "%s/devise_api/create.json" % (
-                self.backend_record.location.encode('utf-8'),
-                )
-            external_id = requests.post(url, params=payload).json()
-            binding.write({'external_id': external_id})
-        return _('Record exported with ID %s on Devise.') % external_id
+            record = self._create_data(map_record, fields=fields)
+            if not record:
+                return _('Nothing to export.')
+            self.external_id = self._create(record)
+        return _('Record exported with ID %s on Magento.') % self.external_id
+
+
+class WebPartnerExporter(WebExporter):
+    _model_name = 'web.res.partner'
+
+    def _validate_create_data(self, data):
+        if not data.get('email'):
+            raise InvalidDataError('Email is missing')
+        return
+
+    #TODO add backend adapter
+    def _create(self, data):
+        """ Create the Magento record """
+        # special check on data before export
+        self._validate_create_data(data)
+        data['devise_api_secret'] = self.backend_record.secret
+        url = "%s/devise_api/create.json" % (
+            self.backend_record.location.encode('utf-8'),
+            )
+        return requests.post(url, params=data).json()
+
+    def _update(self, data):
+        """ Update an Magento record """
+        assert self.external_id
+        # special check on data before export
+        self._validate_update_data(data)
+        data['devise_api_secret'] = self.backend_record.secret
+        url = "%s/devise_api/update/%s.json" % (
+            self.backend_record.location.encode('utf-8'),
+            self.external_id,
+            )
+        return requests.post(url, params=data).json()
 
 
 @job(default_channel='root.devise')

@@ -72,3 +72,5 @@ class ResPartner(models.Model):
 @web
 class PartnerExportMapper(ExportMapper):
     _model_name = 'web.res.partner'
+
+    direct = [('email', 'email')]
