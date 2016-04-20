@@ -5,3 +5,4 @@ from . import consummer
 from . import backend
 from . import web_model
 from . import partner
+from . import controllers
