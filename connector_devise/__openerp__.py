@@ -26,7 +26,7 @@
              ],
  'author': "Akretion",
  'license': 'AGPL-3',
- 'data': ['view.xml', 'menu.xml'],
+ 'data': ['view.xml', 'menu.xml', 'data/portal_user.xml'],
  'installable': True,
  'application': False,
  }

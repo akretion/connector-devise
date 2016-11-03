@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- similar to Odoo public user but meant for authentication and ORM API calls
+             with entry point controlled from the Ruby web app instead of the Odoo web modules -->
+        <record id="ooor_public_user" model="res.users" context="{'no_reset_password': True}">
+            <field name="name">Public user</field>
+            <field name="login">ooor_public_user</field>
+            <field name="password"></field>
+            <!-- Avoid auto-including this demo user in any default group -->
+            <field name="image" type="base64" file="base/static/img/public_user-image.png"/>
+            <field name="partner_id" ref="base.public_partner"/>
+            <field name="active" eval="True"/>
+            <field name="groups_id" eval="[(5,)]"/>
+        </record>
+
+        <!-- Add the demo user to the portal (and therefore to the portal member group) -->
+        <record id="base.group_portal" model="res.groups">
+            <field name="users" eval="[(4,ref('ooor_public_user'))]"/>
+        </record>
+
+    </data>
+</odoo>
